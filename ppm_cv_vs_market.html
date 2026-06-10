@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PPMポジションマップ</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-annotation/3.0.1/chartjs-plugin-annotation.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif; background: #fff; color: #222; }
+
+  /* ===== パスコード画面 ===== */
+  #lockScreen {
+    position: fixed; inset: 0; background: #1a1a2e;
+    display: flex; align-items: center; justify-content: center; z-index: 9999;
+  }
+  .lock-box {
+    background: #fff; border-radius: 16px; padding: 48px 40px;
+    text-align: center; width: 340px; box-shadow: 0 8px 40px rgba(0,0,0,0.4);
+  }
+  .lock-box h2 { font-size: 18px; font-weight: 700; margin-bottom: 6px; }
+  .lock-box p  { font-size: 13px; color: #666; margin-bottom: 28px; }
+  .lock-box input {
+    width: 100%; padding: 12px 16px; font-size: 20px; letter-spacing: 6px;
+    border: 2px solid #ddd; border-radius: 8px; text-align: center;
+    outline: none; margin-bottom: 16px;
+  }
+  .lock-box input:focus { border-color: #3A75C4; }
+  .lock-box button {
+    width: 100%; padding: 12px; background: #3A75C4; color: #fff;
+    border: none; border-radius: 8px; font-size: 14px; font-weight: 600;
+    cursor: pointer; transition: background 0.2s;
+  }
+  .lock-box button:hover { background: #2a5fa8; }
+  .lock-error { color: #C03030; font-size: 12px; margin-top: 10px; min-height: 18px; }
+
+  /* ===== メインコンテンツ ===== */
+  #mainContent { display: none; padding: 32px 40px 40px; }
+  h1 { font-size: 16px; font-weight: 600; margin-bottom: 6px; line-height: 1.5; }
+  .subtitle { font-size: 12px; color: #666; margin-bottom: 14px; }
+  .legend { display: flex; gap: 18px; flex-wrap: wrap; margin-bottom: 20px; font-size: 12px; color: #333; }
+  .legend-item { display: flex; align-items: center; gap: 5px; }
+  .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .chart-wrap { position: relative; width: 100%; height: 500px; }
+  .quad-desc { display: grid; grid-template-columns: 1fr 1fr; gap: 0; margin-top: 28px; font-size: 12px; }
+  .quad-desc-item { padding: 8px 0; }
+  .quad-desc-item:nth-child(2), .quad-desc-item:nth-child(4) { padding-left: 40px; }
+  .quad-desc-title { font-weight: 600; margin-bottom: 3px; }
+  .quad-desc-body { color: #555; }
+  .threshold-note { margin-top: 16px; font-size: 11px; color: #888; }
+</style>
+</head>
+<body>
+
+<!-- パスコード画面 -->
+<div id="lockScreen">
+  <div class="lock-box">
+    <h2>🔒 閲覧パスコード</h2>
+    <p>このページを閲覧するにはパスコードを入力してください</p>
+    <input type="password" id="passcodeInput" placeholder="パスコードを入力" maxlength="12"
+      onkeydown="if(event.key==='Enter') checkPasscode()">
+    <button onclick="checkPasscode()">確認</button>
+    <div class="lock-error" id="lockError"></div>
+  </div>
+</div>
+
+<!-- メインコンテンツ -->
+<div id="mainContent">
+  <h1>PPMポジションマップ：現状CV × 残マーケット量による47都道府県の4象限分類</h1>
+  <div class="subtitle">X軸：残マーケット量（適齢期人口のうちまだ獲得できていない割合%）　Y軸：現状CV数　※ドットサイズ＝適齢期人口規模</div>
+
+  <div class="legend">
+    <div class="legend-item"><div class="legend-dot" style="background:#3A75C4;"></div>Q1 花形（高CV × 低残量）</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#C8860A;"></div>Q2 金のなる木（低CV × 低残量）</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#C03030;"></div>Q3 問題児（高CV × 高残量）</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#8A8A82;"></div>Q4 負け犬（低CV × 高残量）</div>
+  </div>
+
+  <div class="chart-wrap">
+    <canvas id="ppmChart"></canvas>
+  </div>
+
+  <div class="quad-desc">
+    <div class="quad-desc-item">
+      <div class="quad-desc-title">Q1 花形（Star）</div>
+      <div class="quad-desc-body">高CV × 低残量 → すでに成果を出しており市場も刈り取り済み。現状維持・効率改善</div>
+    </div>
+    <div class="quad-desc-item">
+      <div class="quad-desc-title">Q2 金のなる木（Cash Cow）</div>
+      <div class="quad-desc-body">低CV × 低残量 → 小市場でシェアを獲得。過剰投資せず効率維持</div>
+    </div>
+    <div class="quad-desc-item">
+      <div class="quad-desc-title">Q3 問題児（Question Mark）</div>
+      <div class="quad-desc-body">高CV × 高残量 → 成果は出ているが市場余白が大きい。最優先の投資候補</div>
+    </div>
+    <div class="quad-desc-item">
+      <div class="quad-desc-title">Q4 負け犬（Dog）</div>
+      <div class="quad-desc-body">低CV × 高残量 → 成果も少なく残余地も大きい。CPA改善が先決</div>
+    </div>
+  </div>
+  <div class="threshold-note">閾値：現状CV中央値 295件 / 残マーケット量中央値 99.96%</div>
+</div>
+
+<script>
+// ===== パスコード =====
+function checkPasscode() {
+  const input = document.getElementById('passcodeInput').value;
+  const error = document.getElementById('lockError');
+  if (input === '20260610') {
+    document.getElementById('lockScreen').style.display = 'none';
+    document.getElementById('mainContent').style.display = 'block';
+    renderChart();
+  } else {
+    error.textContent = 'パスコードが正しくありません。再度入力してください。';
+    document.getElementById('passcodeInput').value = '';
+    document.getElementById('passcodeInput').focus();
+  }
+}
+
+// ===== チャート =====
+function renderChart() {
+  const CV_MED     = 295;
+  const MARKET_MED = 99.96;
+
+  const areas = [
+    {a:"tokyo",     m:99.95, cv:4104, pop:8213000, cpa:857},
+    {a:"osaka",     m:99.91, cv:3868, pop:4402000, cpa:800},
+    {a:"aichi",     m:99.95, cv:2025, pop:3732000, cpa:1232},
+    {a:"fukuoka",   m:99.95, cv:1331, pop:2566000, cpa:1240},
+    {a:"shizuoka",  m:99.93, cv:1172, pop:1728000, cpa:1148},
+    {a:"hiroshima", m:99.93, cv:938,  pop:1360000, cpa:1157},
+    {a:"hyogo",     m:99.96, cv:935,  pop:2623000, cpa:1209},
+    {a:"hokkaido",  m:99.97, cv:722,  pop:2391000, cpa:1312},
+    {a:"ibaraki",   m:99.95, cv:684,  pop:1389000, cpa:1171},
+    {a:"nagano",    m:99.94, cv:626,  pop:986000,  cpa:1228},
+    {a:"niigata",   m:99.94, cv:590,  pop:998000,  cpa:1417},
+    {a:"kanagawa",  m:99.99, cv:578,  pop:4519000, cpa:1301},
+    {a:"saitama",   m:99.98, cv:554,  pop:3539000, cpa:1374},
+    {a:"okayama",   m:99.94, cv:552,  pop:921000,  cpa:1263},
+    {a:"tochigi",   m:99.94, cv:552,  pop:953000,  cpa:1602},
+    {a:"gunma",     m:99.95, cv:509,  pop:940000,  cpa:1746},
+    {a:"kyoto",     m:99.96, cv:486,  pop:1214000, cpa:1282},
+    {a:"ishikawa",  m:99.93, cv:400,  pop:552000,  cpa:1136},
+    {a:"mie",       m:99.95, cv:385,  pop:834000,  cpa:1139},
+    {a:"chiba",     m:99.99, cv:385,  pop:3021000, cpa:1332},
+    {a:"miyagi",    m:99.97, cv:365,  pop:1131000, cpa:1455},
+    {a:"kagawa",    m:99.92, cv:353,  pop:468000,  cpa:1270},
+    {a:"ehime",     m:99.95, cv:348,  pop:662000,  cpa:1076},
+    {a:"okinawa",   m:99.96, cv:328,  pop:758000,  cpa:1192},
+    {a:"fukushima", m:99.97, cv:295,  pop:904000,  cpa:1296},
+    {a:"toyama",    m:99.95, cv:252,  pop:503000,  cpa:1235},
+    {a:"yamaguchi", m:99.96, cv:243,  pop:634000,  cpa:1482},
+    {a:"shiga",     m:99.97, cv:232,  pop:693000,  cpa:1449},
+    {a:"yamanashi", m:99.95, cv:202,  pop:394000,  cpa:1101},
+    {a:"kumamoto",  m:99.98, cv:183,  pop:860000,  cpa:957},
+    {a:"wakayama",  m:99.96, cv:179,  pop:451000,  cpa:1313},
+    {a:"tokushima", m:99.95, cv:179,  pop:350000,  cpa:1261},
+    {a:"kagoshima", m:99.98, cv:140,  pop:779000,  cpa:1046},
+    {a:"nara",      m:99.98, cv:138,  pop:635000,  cpa:1060},
+    {a:"nagasaki",  m:99.98, cv:132,  pop:620000,  cpa:1128},
+    {a:"fukui",     m:99.97, cv:131,  pop:381000,  cpa:1740},
+    {a:"ooita",     m:99.98, cv:131,  pop:548000,  cpa:1698},
+    {a:"shimane",   m:99.97, cv:106,  pop:327000,  cpa:1155},
+    {a:"kouchi",    m:99.98, cv:83,   pop:338000,  cpa:1388},
+    {a:"aomori",    m:99.99, cv:74,   pop:608000,  cpa:1882},
+    {a:"iwate",     m:99.99, cv:70,   pop:576000,  cpa:1705},
+    {a:"tottori",   m:99.97, cv:69,   pop:274000,  cpa:1448},
+    {a:"saga",      m:99.99, cv:46,   pop:398000,  cpa:762},
+    {a:"yamagata",  m:99.99, cv:41,   pop:512000,  cpa:1386},
+    {a:"akita",     m:100.00,cv:22,   pop:458000,  cpa:1886},
+    {a:"miyazaki",  m:100.00,cv:16,   pop:511000,  cpa:2594},
+  ];
+
+  function getColor(d) {
+    const hcv = d.cv >= CV_MED, hm = d.m >= MARKET_MED;
+    if ( hcv && !hm) return '#3A75C4';
+    if (!hcv && !hm) return '#C8860A';
+    if ( hcv &&  hm) return '#C03030';
+    return '#8A8A82';
+  }
+
+  function getRadius(pop) {
+    if (pop >= 4000000) return 14;
+    if (pop >= 2000000) return 11;
+    if (pop >= 1000000) return 9;
+    if (pop >= 500000)  return 7;
+    return 5;
+  }
+
+  const datasets = areas.map(d => ({
+    label: d.a,
+    data: [{x: d.m, y: d.cv, r: getRadius(d.pop)}],
+    backgroundColor: getColor(d) + 'CC',
+    borderColor: getColor(d),
+    borderWidth: 1.5,
+  }));
+
+  new Chart(document.getElementById('ppmChart'), {
+    type: 'bubble',
+    data: { datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: ctx => {
+              const d = areas.find(r => r.a === ctx.dataset.label);
+              if (!d) return '';
+              const hcv = d.cv >= CV_MED, hm = d.m >= MARKET_MED;
+              const quad = hcv&&!hm?'Q1 花形':!hcv&&!hm?'Q2 金のなる木':hcv&&hm?'Q3 問題児':'Q4 負け犬';
+              return [
+                `${d.a}　[${quad}]`,
+                `残マーケット: ${d.m.toFixed(2)}%`,
+                `現状CV: ${d.cv.toLocaleString()}件`,
+                `適齢期人口: ${(d.pop/10000).toFixed(0)}万人`,
+                `現状CPA: ¥${d.cpa.toLocaleString()}`,
+              ];
+            }
+          },
+          backgroundColor:'rgba(255,255,255,0.97)', titleColor:'#222', bodyColor:'#444',
+          borderColor:'#ddd', borderWidth:1, padding:10,
+          titleFont:{size:12,weight:'600'}, bodyFont:{size:11},
+        },
+        annotation: {
+          annotations: {
+            vLine: { type:'line', xMin:MARKET_MED, xMax:MARKET_MED, borderColor:'rgba(100,100,100,0.3)', borderWidth:1, borderDash:[5,4] },
+            hLine: { type:'line', yMin:CV_MED, yMax:CV_MED, borderColor:'rgba(100,100,100,0.3)', borderWidth:1, borderDash:[5,4] },
+            labelQ1: { type:'label', xValue:99.915, yValue:3700, content:'Q1 花形',      font:{size:12}, color:'rgba(58,117,196,0.55)',   textAlign:'left' },
+            labelQ2: { type:'label', xValue:99.915, yValue:80,   content:'Q2 金のなる木', font:{size:12}, color:'rgba(200,134,10,0.55)',   textAlign:'left' },
+            labelQ3: { type:'label', xValue:99.975, yValue:3700, content:'Q3 問題児',    font:{size:12}, color:'rgba(192,48,48,0.55)' },
+            labelQ4: { type:'label', xValue:99.975, yValue:80,   content:'Q4 負け犬',    font:{size:12}, color:'rgba(120,120,110,0.55)' },
+          }
+        }
+      },
+      scales: {
+        x: {
+          min: 99.90, max: 100.005,
+          title: { display:true, text:'残マーケット量（適齢期人口のうち未獲得の割合 %）', font:{size:11}, color:'#666', padding:{top:8} },
+          ticks: {
+            font:{size:10}, color:'#888',
+            callback: v => Math.round(v) + '%',
+            stepSize: 0.02,
+          },
+          grid: { color:'rgba(0,0,0,0.07)' },
+          border: { color:'rgba(0,0,0,0.15)' },
+        },
+        y: {
+          min:0, max:4400,
+          title: { display:true, text:'現状CV数（件）', font:{size:11}, color:'#666', padding:{bottom:8} },
+          ticks: { font:{size:10}, color:'#888', callback: v => v.toLocaleString(), stepSize:500 },
+          grid: { color:'rgba(0,0,0,0.07)' },
+          border: { color:'rgba(0,0,0,0.15)' },
+        },
+      },
+      layout: { padding:{top:10, right:30, bottom:10, left:10} }
+    }
+  });
+}
+</script>
+</body>
+</html>
