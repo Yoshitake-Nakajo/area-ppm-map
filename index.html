@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -114,7 +113,8 @@
     </div>
   </div>
   <div class="threshold-note">
-    閾値：CV中央値 328件 / 残マーケット中央値 99.966%（X軸は反転表示）
+    【クロス線の境界値】縦線：残マーケット中央値 <strong>99.964%</strong>（47エリアの中央値）　横線：CV中央値 <strong>328件</strong>（47エリアの中央値）<br>
+    ※X軸は反転表示（左ほど残マーケット量が多い＝未獲得が大きい）
   </div>
 </div>
 
@@ -134,8 +134,8 @@ function checkPasscode() {
 }
 
 function renderChart() {
-  const CV_MED     = 328;
-  const MARKET_MED = 99.966;
+  const CV_MED     = 328;    // CV中央値：328件
+  const MARKET_MED = 99.964; // 残マーケット中央値：99.964%
 
   // X軸反転のため残マーケット量をそのまま使い reverse:true で表示
   const areas = [
@@ -241,19 +241,43 @@ function renderChart() {
         },
         annotation: {
           annotations: {
+            // クロス線（縦）：残マーケット中央値 99.964%
             vLine: {
               type:'line', xMin:MARKET_MED, xMax:MARKET_MED,
-              borderColor:'rgba(100,100,100,0.3)', borderWidth:1, borderDash:[5,4],
+              borderColor:'rgba(80,80,80,0.5)', borderWidth:1.5, borderDash:[6,4],
             },
+            // クロス線（横）：CV中央値 328件
             hLine: {
               type:'line', yMin:CV_MED, yMax:CV_MED,
-              borderColor:'rgba(100,100,100,0.3)', borderWidth:1, borderDash:[5,4],
+              borderColor:'rgba(80,80,80,0.5)', borderWidth:1.5, borderDash:[6,4],
             },
-            // X軸反転のためラベル位置も左右入れ替え
-            labelStar:     { type:'label', xValue:99.920, yValue:3700, content:'Q1 花形',      font:{size:12}, color:'rgba(58,117,196,0.6)',   textAlign:'left' },
-            labelCashCow:  { type:'label', xValue:99.920, yValue:80,   content:'Q2 金のなる木', font:{size:12}, color:'rgba(200,134,10,0.6)',   textAlign:'left' },
-            labelQuestion: { type:'label', xValue:99.990, yValue:3700, content:'Q3 問題児',    font:{size:12}, color:'rgba(192,48,48,0.6)' },
-            labelDog:      { type:'label', xValue:99.990, yValue:80,   content:'Q4 負け犬',    font:{size:12}, color:'rgba(120,120,110,0.6)' },
+            // 縦線ラベル（上部）
+            vLineLabel: {
+              type:'label',
+              xValue: MARKET_MED,
+              yValue: 4380,
+              content: ['残マーケット中央値', '99.964%'],
+              font:{size:10},
+              color:'rgba(80,80,80,0.7)',
+              textAlign:'center',
+              padding:4,
+            },
+            // 横線ラベル（右端）
+            hLineLabel: {
+              type:'label',
+              xValue: 99.907,
+              yValue: CV_MED,
+              content: ['CV中央値', '328件'],
+              font:{size:10},
+              color:'rgba(80,80,80,0.7)',
+              textAlign:'left',
+              padding:4,
+            },
+            // 象限ラベル（X軸反転のため左右入れ替え）
+            labelStar:     { type:'label', xValue:99.915, yValue:3800, content:'Q1 花形',      font:{size:13, weight:'600'}, color:'rgba(58,117,196,0.65)',   textAlign:'left' },
+            labelCashCow:  { type:'label', xValue:99.915, yValue:60,   content:'Q2 金のなる木', font:{size:13, weight:'600'}, color:'rgba(200,134,10,0.65)',   textAlign:'left' },
+            labelQuestion: { type:'label', xValue:99.993, yValue:3800, content:'Q3 問題児',    font:{size:13, weight:'600'}, color:'rgba(192,48,48,0.65)',    textAlign:'right' },
+            labelDog:      { type:'label', xValue:99.993, yValue:60,   content:'Q4 負け犬',    font:{size:13, weight:'600'}, color:'rgba(120,120,110,0.65)', textAlign:'right' },
           }
         }
       },
